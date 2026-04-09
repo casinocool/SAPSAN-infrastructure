@@ -2,7 +2,7 @@ services:
   #user-postgres
   user-postgres:
     image: postgres:17
-    container_name: person-postgres
+    container_name: user-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -12,7 +12,7 @@ services:
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL","pg_isready - U postgres -p 5432"]
+      test: ["CMD-SHELL","pg_isready -U postgres -p 5432"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -30,13 +30,13 @@ services:
     ports:
       - "5433:5432"
     healthcheck:
-      test: [ "CMD-SHELL","pg_isready - U keycloak" ]
+      test: [ "CMD-SHELL","pg_isready -U keycloak" ]
       interval: 10s
       timeout: 5s
       retries: 20
   user-postgres-exporeter:
     image: prometheuscommunity/postgres-exporter:latest
-    container_name: person-postgres-exporter
+    container_name: user-postgres-exporter
     depends_on:
       user-postgres:
         condition: service_healthy
@@ -54,15 +54,15 @@ services:
     environment:
       DATA_SOURCE_NAME: postgresql://keycloak:keycloak@keycloak-postgres:5432/postgres?sslmode=disable
     ports:
-      - "9188:9187"
+      - "9189:9187"
   #keycloak
   keycloak:
     image: quay.io/keycloak/keycloak:26.2
     container_name: individuals-keycloak
     command:
-      -start-dev
-      -import-realm
-      --health-enabled=true
+      - start-dev
+      - --import-realm
+      - --health-enabled=true
     ports:
       - "8080:8080"
       - "9000:9000"
@@ -74,6 +74,8 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
+      KC_METRICS_ENABLED: true
+      KC_HEALTH_ENABLED: true
     volumes:
       - ./infrastrucuture/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json
     depends_on:
@@ -95,7 +97,7 @@ services:
     volumes:
       - nexus-data:/nexus-data
     healthcheck:
-      test: ["CMD","curl","-f","http://localhost:8081/service/rest/v1/staus"]
+      test: ["CMD","curl","-f","http://localhost:8081/service/rest/v1/status"]
       interval: 5s
       timeout: 10s
       retries: 30
@@ -106,7 +108,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./infrastracture/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     healthcheck:
       test: ["CMD","wget", "--spider", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -188,7 +190,7 @@ services:
 volumes:
   artifacts:
   tempo_data:
-  nexus_data:
+  nexus-data:
   loki_data:
   loki_chunks:
   loki_index:
