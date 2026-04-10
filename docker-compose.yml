@@ -76,6 +76,9 @@ services:
       KC_DB_PASSWORD: keycloak
       KC_METRICS_ENABLED: true
       KC_HEALTH_ENABLED: true
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: sapsan.local
+      KC_HTTP_ENABLED: true
     volumes:
       - ./infrastrucuture/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json
     depends_on:
@@ -184,6 +187,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+  nginx:
+    image: nginx:alpine
+    container_name: sapsan-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - individuals-keycloak
   # user-api
   # api
 
