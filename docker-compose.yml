@@ -57,38 +57,35 @@ services:
       - "9189:9187"
   #keycloak
   keycloak:
-    image: quay.io/keycloak/keycloak:26.2
+    build:
+      context: ./infrastructure/keycloak
     container_name: individuals-keycloak
     command:
-      - start-dev
+      - start
+      - --optimized
       - --import-realm
-      - --health-enabled=true
-    ports:
-      - "8080:8080"
-      - "9000:9000"
+    # Порты 8080 и 9000 больше не нужны наружу, так как есть Nginx
+    # Но для отладки можешь оставить 8080:8080
     environment:
-      JAVA_OPTS: -Dkeycloak.migration.userExportStrategy=REALM_FILE
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
-      KC_METRICS_ENABLED: true
-      KC_HEALTH_ENABLED: true
-      KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME: sapsan.local
-      KC_HTTP_ENABLED: true
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: true # Чтобы Nginx мог достучаться до Keycloak по HTTP
     volumes:
-      - ./infrastrucuture/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json
+      - ./infrastructure/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json
     depends_on:
       keycloak-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/healthy/ready || exit1"]
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e \"GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n\" >&3 && cat <&3 | grep -q \"UP\" || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 30
+      retries: 10
   nexus:
     image: sonatype/nexus3:3.76.0
     container_name: nexus
@@ -207,10 +204,19 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro # Проверь путь! Был ./nginx/
+      - ./infrastructure/nginx/certs:/etc/nginx/certs:ro
     depends_on:
-      - individuals-keycloak
+      keycloak: # Исправлено: ссылаемся на имя сервиса
+        condition: service_healthy
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: sapsan-mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    restart: unless-stopped
+    # Если у тебя есть общая сеть (например, sapsan-network), добавь её сюда
   # user-api
   # api
 
