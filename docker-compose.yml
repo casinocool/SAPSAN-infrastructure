@@ -75,7 +75,7 @@ services:
       KC_DB_PASSWORD: keycloak
       KC_HOSTNAME: sapsan.local
       KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: true # Чтобы Nginx мог достучаться до Keycloak по HTTP
+      KC_HTTP_ENABLED: true
     volumes:
       - ./infrastructure/keycloak/realm-config.json:/opt/keycloak/data/import/realm-config.json
     depends_on:
@@ -219,6 +219,13 @@ services:
     # Если у тебя есть общая сеть (например, sapsan-network), добавь её сюда
   # user-api
   # api
+  eureka-server:
+    build:
+      context: ./infrastructure/eureka
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
 
 volumes:
   artifacts:
